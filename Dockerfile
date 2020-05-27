@@ -7,6 +7,7 @@ RUN apt install -y --no-install-recommends wget && \
 
 # Set non-root user
 ENV USER="user"
+ENV NB_UID="1000"
 RUN useradd -ms /bin/bash $USER
 USER $USER 
 ENV HOME="/home/$USER"
@@ -19,24 +20,28 @@ RUN ./anaconda.sh -b -p $HOME/anaconda
 RUN rm ./anaconda.sh
 ENV PATH="/${HOME}/anaconda/bin:${PATH}"
 
+# Copy notebooks
+COPY ./notebooks/ ${HOME}/notebooks/
+RUN chown -R ${NB_UID} ${HOME}
+USER ${USER}
+
 # Install .NET kernel
 RUN dotnet tool install -g --add-source "https://dotnet.myget.org/F/dotnet-try/api/v3/index.json" Microsoft.dotnet-interactive
 ENV PATH="/${HOME}/.dotnet/tools:${PATH}"
 ENV DOTNET_CLI_TELEMETRY_OPTOUT=1
 RUN dotnet interactive jupyter install
 
-COPY ./notebooks/ ${HOME}/notebooks/
+
 
 # Run Jupyter Notebook
 EXPOSE 8888
 ENTRYPOINT ["jupyter", "notebook", "--no-browser", "--ip=0.0.0.0"]
-# Copy notebooks
-
-
 
 # Copy package sources
 
 #COPY ./NuGet.config ${HOME}/nuget.config
 
-#RUN chown -R ${NB_UID} ${HOME}
-#USER ${USER}
+# Set root to Notebooks
+WORKDIR ${HOME}/Notebooks/
+
+

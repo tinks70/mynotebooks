@@ -8,12 +8,12 @@ RUN apt install -y --no-install-recommends wget && \
 # Set non-root user
 ENV USER="user"
 ENV NB_UID=1000
-RUN useradd -ms -u 1000 /bin/bash $USER
+RUN useradd -ms /bin/bash -u $NB_UID $USER
 USER $USER 
 ENV HOME="/home/$USER"
 WORKDIR $HOME
 
-USER root
+
 # Install Anaconda
 RUN wget https://repo.anaconda.com/archive/Anaconda3-2020.02-Linux-x86_64.sh -O anaconda.sh
 RUN chmod +x anaconda.sh
@@ -22,8 +22,10 @@ RUN rm ./anaconda.sh
 ENV PATH="/${HOME}/anaconda/bin:${PATH}"
 
 # Copy notebooks
+USER root
 COPY ./notebooks/ ${HOME}/notebooks/
 RUN chown -R ${NB_UID} ${HOME}
+
 USER ${USER}
 
 # Install .NET kernel

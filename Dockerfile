@@ -1,50 +1,76 @@
-FROM mcr.microsoft.com/dotnet/core/sdk:3.1
+FROM jupyter/scipy-notebook:latest
 
-RUN apt install -y --no-install-recommends wget && \
-    apt autoremove -y && \
-    apt clean && \
-    rm -rf /var/lib/apt/lists/*
+# Install .NET CLI dependencies
 
-# Set non-root user
-ENV USER="user"
-ENV NB_UID=1000
-RUN useradd -ms /bin/bash -u $NB_UID $USER
-USER $USER 
-ENV HOME="/home/$USER"
-WORKDIR $HOME
+ARG NB_USER=jovyan
+ARG NB_UID=1000
+ENV USER ${NB_USER}
+ENV NB_UID ${NB_UID}
+ENV HOME /home/${NB_USER}
 
+WORKDIR ${HOME}
 
-# Install Anaconda
-RUN wget https://repo.anaconda.com/archive/Anaconda3-2020.02-Linux-x86_64.sh -O anaconda.sh
-RUN chmod +x anaconda.sh
-RUN ./anaconda.sh -b -p $HOME/anaconda
-RUN rm ./anaconda.sh
-ENV PATH="/${HOME}/anaconda/bin:${PATH}"
+USER root
+RUN apt-get update
+RUN apt-get install -y curl
+
+# Install .NET CLI dependencies
+RUN apt-get install -y --no-install-recommends \
+        libc6 \
+        libgcc1 \
+        libgssapi-krb5-2 \
+        libicu60 \
+        libssl1.1 \
+        libstdc++6 \
+        zlib1g 
+
+RUN rm -rf /var/lib/apt/lists/*
+
+# Install .NET Core SDK
+
+# When updating the SDK version, the sha512 value a few lines down must also be updated.
+ENV DOTNET_SDK_VERSION 3.1.200
+
+RUN curl -SL --output dotnet.tar.gz https://dotnetcli.blob.core.windows.net/dotnet/Sdk/$DOTNET_SDK_VERSION/dotnet-sdk-$DOTNET_SDK_VERSION-linux-x64.tar.gz \
+    && dotnet_sha512='5b9398c7bfe7f67cd9f38fdd4e6e429e1b6aaac0fe04672be0f8dca26580fb46906fd1d2deea6a7d3fb07d77e898f067d3ac1805fe077dc7c1adf9515c9bc9a9' \
+    && echo "$dotnet_sha512 dotnet.tar.gz" | sha512sum -c - \
+    && mkdir -p /usr/share/dotnet \
+    && tar -zxf dotnet.tar.gz -C /usr/share/dotnet \
+    && rm dotnet.tar.gz \
+    && ln -s /usr/share/dotnet/dotnet /usr/bin/dotnet
+
+# Enable detection of running in a container
+ENV DOTNET_RUNNING_IN_CONTAINER=true \
+    # Enable correct mode for dotnet watch (only mode supported in a container)
+    DOTNET_USE_POLLING_FILE_WATCHER=true \
+    # Skip extraction of XML docs - generally not useful within an image/container - helps performance
+    NUGET_XMLDOC_MODE=skip \
+    # Opt out of telemetry until after we install jupyter when building the image, this prevents caching of machine id
+    DOTNET_TRY_CLI_TELEMETRY_OPTOUT=true
 
 # Copy notebooks
-USER root
-COPY ./notebooks/ ${HOME}/notebooks/
-RUN chown -R ${NB_UID} ${HOME}
-
-USER ${USER}
-
-# Install .NET kernel
-RUN dotnet tool install -g --add-source "https://dotnet.myget.org/F/dotnet-try/api/v3/index.json" Microsoft.dotnet-interactive
-ENV PATH="/${HOME}/.dotnet/tools:${PATH}"
-ENV DOTNET_CLI_TELEMETRY_OPTOUT=1
-RUN dotnet interactive jupyter install
-
-
-
-# Run Jupyter Notebook
-EXPOSE 8888
-ENTRYPOINT ["jupyter", "notebook", "--no-browser", "--ip=0.0.0.0"]
+COPY ./notebooks/ ${HOME}/Notebooks/
 
 # Copy package sources
+COPY ./NuGet.config ${HOME}/nuget.config
 
-#COPY ./NuGet.config ${HOME}/nuget.config
+RUN chown -R ${NB_UID} ${HOME}
+USER ${USER}
+
+#Install nteract 
+RUN pip install nteract_on_jupyter
+
+# Install lastest build from master branch of Microsoft.DotNet.Interactive from myget
+RUN dotnet tool install -g Microsoft.dotnet-interactive --version 1.0.127302 --add-source "https://dotnet.myget.org/F/dotnet-try/api/v3/index.json"
+
+ENV PATH="${PATH}:${HOME}/.dotnet/tools"
+RUN echo "$PATH"
+
+# Install kernel specs
+RUN dotnet interactive jupyter install
+
+# Enable telemetry once we install jupyter for the image
+ENV DOTNET_TRY_CLI_TELEMETRY_OPTOUT=false
 
 # Set root to Notebooks
 WORKDIR ${HOME}/Notebooks/
-
-

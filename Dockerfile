@@ -21,6 +21,7 @@ RUN rm ./anaconda.sh
 ENV PATH="/${HOME}/anaconda/bin:${PATH}"
 
 # Copy notebooks
+USER ROOT
 COPY ./notebooks/ ${HOME}/notebooks/
 RUN chown -R ${NB_UID} ${HOME}
 USER ${USER}

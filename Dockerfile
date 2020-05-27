@@ -21,10 +21,9 @@ RUN rm ./anaconda.sh
 ENV PATH="/${HOME}/anaconda/bin:${PATH}"
 
 # Copy notebooks
-USER ROOT
 COPY ./notebooks/ ${HOME}/notebooks/
-RUN chown -R ${NB_UID} ${HOME}
-USER ${USER}
+#RUN chown -R ${NB_UID} ${HOME}
+#USER ${USER}
 
 # Install .NET kernel
 RUN dotnet tool install -g --add-source "https://dotnet.myget.org/F/dotnet-try/api/v3/index.json" Microsoft.dotnet-interactive

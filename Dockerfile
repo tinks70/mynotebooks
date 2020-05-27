@@ -25,16 +25,18 @@ ENV PATH="/${HOME}/.dotnet/tools:${PATH}"
 ENV DOTNET_CLI_TELEMETRY_OPTOUT=1
 RUN dotnet interactive jupyter install
 
+COPY ./notebooks/ ${HOME}/notebooks/
+
 # Run Jupyter Notebook
 EXPOSE 8888
 ENTRYPOINT ["jupyter", "notebook", "--no-browser", "--ip=0.0.0.0"]
 # Copy notebooks
 
-COPY ./notebooks/ ${HOME}/notebooks/
+
 
 # Copy package sources
 
 #COPY ./NuGet.config ${HOME}/nuget.config
 
-RUN chown -R ${NB_UID} ${HOME}
-USER ${USER}
+#RUN chown -R ${NB_UID} ${HOME}
+#USER ${USER}
